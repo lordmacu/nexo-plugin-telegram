@@ -1,0 +1,109 @@
+# Activated 2026-05-09 — repo published to
+# `github.com/lordmacu/nexo-plugin-telegram` (Phase 81.18
+# follow-up `81.18.e.publish-github`).
+#
+# Tag push (`v0.1.1`, `v0.1.2`, …) builds release binaries for
+# linux-x64 + macos-arm64 and creates a GitHub Release with the
+# assets attached. Operators install via
+# `curl -L <release-url>/telegram-<version>-<target>.tar.gz`
+# or `nexo plugin install` once Phase 31.1.c lands.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+          - os: macos-14
+            target: aarch64-apple-darwin
+            archive: tar.gz
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          path: nexo-rs-plugin-telegram
+      # Path-deps in `Cargo.toml` resolve `../proyecto/crates/...`
+      # — fetch the daemon workspace alongside the plugin so
+      # cargo can build until `81.18.c` (crates.io publish wave)
+      # ships.
+      - name: Checkout proyecto (path-dep workspace)
+        uses: actions/checkout@v4
+        with:
+          repository: lordmacu/nexo-rs
+          path: proyecto
+      # The proyecto workspace also pulls `nexo-plugin-whatsapp`
+      # as a sibling path-dep; without this checkout the
+      # workspace metadata cargo walks during the plugin's
+      # `--release` build dies on the missing manifest.
+      - name: Checkout sibling whatsapp plugin
+        uses: actions/checkout@v4
+        with:
+          repository: lordmacu/nexo-plugin-whatsapp
+          path: nexo-rs-plugin-whatsapp
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: cargo build --release
+        working-directory: nexo-rs-plugin-telegram
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: package (nexo plugin install layout)
+        working-directory: nexo-rs-plugin-telegram
+        run: |
+          # `nexo plugin install` (Phase 31.1.c) expects:
+          #   * bare `nexo-plugin.toml` at release root.
+          #   * `<plugin_id>-<version>-<target>.tar.gz` containing
+          #     `nexo-plugin.toml` + `bin/<plugin_id>` at archive
+          #     root (extractor reads `bin/telegram`, not the
+          #     binary's crate name).
+          #   * `<...>.tar.gz.sha256` sidecar with the hex digest.
+          set -euo pipefail
+          mkdir -p dist/staging/bin
+          cp target/${{ matrix.target }}/release/nexo-plugin-telegram \
+             dist/staging/bin/telegram
+          cp nexo-plugin.toml dist/staging/nexo-plugin.toml
+
+          PLUGIN_ID=$(grep -E '^id = ' nexo-plugin.toml | head -1 | sed -E 's/id = "([^"]+)"/\1/')
+          VERSION=$(grep -E '^version = ' nexo-plugin.toml | head -1 | sed -E 's/version = "([^"]+)"/\1/')
+          TARBALL="${PLUGIN_ID}-${VERSION}-${{ matrix.target }}.tar.gz"
+
+          tar czf "dist/${TARBALL}" -C dist/staging bin/telegram nexo-plugin.toml
+          sha256sum "dist/${TARBALL}" | awk '{print $1}' > "dist/${TARBALL}.sha256"
+          cp nexo-plugin.toml dist/nexo-plugin.toml
+          ls -la dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: |
+            nexo-rs-plugin-telegram/dist/*.tar.gz
+            nexo-rs-plugin-telegram/dist/*.tar.gz.sha256
+            nexo-rs-plugin-telegram/dist/nexo-plugin.toml
+
+  release:
+    name: github release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/*.tar.gz
+            dist/**/*.tar.gz.sha256
+            dist/**/nexo-plugin.toml
+          generate_release_notes: true
