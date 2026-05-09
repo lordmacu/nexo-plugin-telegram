@@ -1,0 +1,25 @@
+# Phase 81.18 — manifest for the out-of-tree Telegram plugin.
+#
+# Bundled into the binary at compile-time via
+# `include_str!("../nexo-plugin.toml")` in `src/main.rs`. The daemon
+# parses this on the JSON-RPC `initialize` reply and validates the
+# `[capabilities.broker]` allowlist against its boot policy before
+# routing the first message.
+
+[plugin]
+id              = "telegram"
+version         = "0.1.1"
+name            = "Telegram Bot"
+description     = "Telegram bot channel for nexo agents."
+min_nexo_version = ">=0.1.0"
+
+[plugin.requires]
+nexo_capabilities = ["broker"]
+
+# Phase 82.15.bx — explicit broker allowlist. Defense-in-depth so a
+# misbehaving plugin can't broadcast outside the topics it declared.
+# `>` matches the per-instance suffix (`telegram.<instance>` and
+# `telegram` legacy).
+[plugin.capabilities.broker]
+subscribe = ["plugin.outbound.telegram", "plugin.outbound.telegram.>"]
+publish   = ["plugin.inbound.telegram",  "plugin.inbound.telegram.>"]

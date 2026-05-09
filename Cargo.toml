@@ -1,0 +1,82 @@
+# Phase 81.18 — out-of-tree standalone repo.
+#
+# Built as a binary subprocess plugin loaded by the nexo-rs daemon
+# via discovery + auto-subprocess fallback (Phase 81.17 + 81.17.b).
+# The daemon spawns this binary, JSON-RPC handshakes over stdio,
+# and routes inbound updates / outbound commands through the
+# `plugin.inbound.telegram.<instance>` and
+# `plugin.outbound.telegram.<instance>` broker topics.
+#
+# Path deps to `../proyecto/crates/...` are interim — they ship
+# this repo today before nexo-microapp-sdk + nexo-config + the
+# rest publish to crates.io. Operators outside the monorepo build
+# the binary against published crates.io versions; the
+# `Cargo.lock` (committed; binary repo convention) pins the
+# resolved versions for reproducibility.
+
+[package]
+name        = "nexo-plugin-telegram"
+version     = "0.1.1"
+description = "Telegram bot plugin for Nexo agents (out-of-tree subprocess)."
+edition     = "2021"
+license     = "MIT OR Apache-2.0"
+repository  = "https://github.com/lordmacu/nexo-plugin-telegram"
+authors     = ["Cristian García <informacion@cristiangarcia.co>"]
+readme      = "README.md"
+keywords    = ["nexo", "plugin", "telegram", "bot", "agent"]
+categories  = ["api-bindings", "command-line-utilities"]
+rust-version = "1.75"
+
+[lib]
+name = "nexo_plugin_telegram"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nexo-plugin-telegram"
+path = "src/main.rs"
+
+[features]
+default = []
+# Phase 90 — mobile embedded consumer drops the subprocess loop and
+# re-uses `TelegramPlugin` directly through the lib surface.
+embedded = []
+
+[dependencies]
+tokio        = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util", "time", "process"] }
+tokio-util   = { version = "0.7", features = ["io"] }
+serde        = { version = "1", features = ["derive"] }
+serde_json   = "1"
+anyhow       = "1"
+async-trait  = "0.1"
+tracing      = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid         = { version = "1", features = ["v5"] }
+reqwest      = { version = "0.12", default-features = false, features = ["multipart", "rustls-tls"] }
+dashmap      = "6"
+futures-util = "0.3"
+chrono       = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+toml         = "0.8"
+once_cell    = "1"
+rustls       = { version = "0.23", default-features = false, features = ["ring"] }
+
+# Path-deps interim until the rest of the proyecto crates publish to
+# crates.io. Mirrors the layout used by the standalone browser plugin.
+nexo-microapp-sdk    = { version = "0.1.12", path = "../proyecto/crates/microapp-sdk", features = ["plugin"] }
+nexo-broker          = { version = "0.1.1",  path = "../proyecto/crates/broker" }
+nexo-core            = { version = "0.1.1",  path = "../proyecto/crates/core" }
+nexo-config          = { version = "0.1.1",  path = "../proyecto/crates/config" }
+nexo-llm             = { version = "0.1.1",  path = "../proyecto/crates/llm" }
+nexo-auth            = { version = "0.1.1",  path = "../proyecto/crates/auth" }
+nexo-pairing         = { version = "0.1.2",  path = "../proyecto/crates/pairing", default-features = false }
+nexo-resilience      = { version = "0.1.1",  path = "../proyecto/crates/resilience" }
+nexo-plugin-manifest = { version = "0.1.0",  path = "../proyecto/crates/plugin-manifest" }
+
+[dev-dependencies]
+wiremock    = "0.6"
+serial_test = "3"
+tempfile    = "3"
+
+[profile.release]
+lto             = "thin"
+codegen-units   = 1
+strip           = "symbols"
