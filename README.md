@@ -32,6 +32,21 @@ nexo-rs-plugin-telegram/
 
 ## Build
 
+### Prerequisite — `nexo-rs` daemon
+
+This plugin runs as a subprocess of [`nexo-rs`](https://github.com/lordmacu/nexo-rs).
+Install the daemon first:
+
+```bash
+curl -fsSL https://lordmacu.github.io/nexo-rs/install.sh | bash
+nexo --version   # ≥ 0.1.6
+```
+
+Other channels (Docker / Termux / source): see the
+[installation guide](https://lordmacu.github.io/nexo-rs/getting-started/installation.html).
+
+### Build the plugin
+
 ```bash
 cargo build --release
 ```
