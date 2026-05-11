@@ -82,7 +82,7 @@ impl MediaSource {
 /// `circuit` wraps every outbound HTTP call to the Telegram API.
 /// One breaker per `BotClient` instance — when a deployment runs
 /// multiple bots (multi-tenant), each gets its own breaker so a
-/// single bad token doesn't cascade across tenants. FOLLOWUPS H-1.
+/// single bad token doesn't cascade across tenants.
 #[derive(Clone)]
 pub struct BotClient {
     http: Client,
@@ -597,7 +597,6 @@ impl BotClient {
     /// open" error; transport / 4xx / 5xx errors flow through
     /// unchanged but trip the failure counter so a sustained burst
     /// opens the breaker and stops hammering Telegram.
-    /// FOLLOWUPS H-1.
     async fn run_breakered<F, Fut, T>(&self, op: F) -> anyhow::Result<T>
     where
         F: FnOnce() -> Fut,

@@ -86,8 +86,8 @@ pub struct TelegramPlugin {
     /// `PluginRegistry` keys on this string, so multi-bot setups need
     /// unique names to avoid one overwriting another on register.
     registry_name: String,
-    /// Phase 81.12.b — compile-time-bundled plugin manifest. Parsed
-    /// once in `new()` from `../nexo-plugin.toml` via `include_str!`.
+    /// Compile-time-bundled plugin manifest. Parsed once in `new()`
+    /// from `../nexo-plugin.toml` via `include_str!`.
     /// `manifest().plugin.id` stays `"telegram"` for every instance —
     /// the per-instance label lives in `registry_name`, not the manifest.
     cached_manifest: PluginManifest,
@@ -103,7 +103,7 @@ pub struct TelegramPlugin {
     spawned: Mutex<Vec<JoinHandle<()>>>,
 }
 
-/// Phase 81.12.b — bundled NexoPlugin manifest. `expect()` is OK here:
+/// Bundled NexoPlugin manifest. `expect()` is OK here:
 /// the file ships in this crate and is checked at compile time by
 /// `include_str!`, so a parse failure means the workspace itself is
 /// broken — fail-fast at boot beats a deferred "manifest missing" surprise.
@@ -150,7 +150,7 @@ impl TelegramPlugin {
         self.health.lock().await.clone()
     }
 
-    /// Phase 81.18 — borrow the underlying [`BotClient`]. Used by the
+    /// Borrow the underlying [`BotClient`]. Used by the
     /// subprocess `tool.invoke` dispatcher so JSON-RPC tool calls can
     /// reach the HTTP Bot API directly without round-tripping through
     /// the broker. Returns `None` when the plugin hasn't been started
@@ -265,10 +265,9 @@ impl Plugin for TelegramPlugin {
     }
 }
 
-/// Phase 81.12.b — dual-trait wrapper. Until Phase 81.12.e flips the
-/// boot path in `src/main.rs`, the legacy `Plugin` impl above is the
-/// one actually invoked at runtime; this `NexoPlugin` impl exists so a
-/// future `factory_registry.register("telegram", telegram_plugin_factory(cfg))`
+/// Dual-trait wrapper. The legacy `Plugin` impl above is the one
+/// invoked at runtime today; this `NexoPlugin` impl exists so a
+/// `factory_registry.register("telegram", telegram_plugin_factory(cfg))`
 /// callsite can drive the same plugin through `wire_plugin_registry`
 /// without touching the per-instance fields.
 ///
@@ -968,7 +967,7 @@ fn extract_forward_info(msg: &TgMessage) -> Option<ForwardInfo> {
     None
 }
 
-/// Extract Phase 77.17 AskUserQuestion correlation id from the quoted
+/// Extract the AskUserQuestion correlation id from the quoted
 /// bot message text/caption.
 fn reply_to_question_id(msg: &TgMessage) -> Option<String> {
     let text = msg.text.as_deref().or(msg.caption.as_deref())?;

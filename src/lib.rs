@@ -14,7 +14,7 @@
 //!    offset path, …); per-instance state is fully owned by the
 //!    subprocess, no cross-process coordination.
 //!
-//! 2. **Embedded (Phase 90)** — a host process (Android Flutter
+//! 2. **Embedded** — a host process (Android Flutter
 //!    bridge, future single-process operator UI) imports the lib
 //!    directly and instantiates [`TelegramPlugin`] in-process via
 //!    [`telegram_plugin_factory`]. The `embedded` cargo feature

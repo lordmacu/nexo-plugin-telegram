@@ -1,4 +1,4 @@
-//! Phase 81.18 — env-var → `TelegramPluginConfig` reader.
+//! Env-var → `TelegramPluginConfig` reader.
 //!
 //! The daemon seeds these vars before spawning the subprocess; the
 //! plugin never reads YAML directly. Mirrors the

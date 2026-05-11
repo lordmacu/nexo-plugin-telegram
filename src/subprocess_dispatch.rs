@@ -1,4 +1,4 @@
-//! Phase 81.18 — subprocess `tool.invoke` dispatcher.
+//! Subprocess `tool.invoke` dispatcher.
 //!
 //! Maps the 6 tool names declared by [`telegram_tool_defs`] to direct
 //! [`BotClient`] calls (or [`dispatch_custom`] for the format-aware
