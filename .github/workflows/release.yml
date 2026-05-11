@@ -79,7 +79,7 @@ jobs:
           TARBALL="${PLUGIN_ID}-${VERSION}-${{ matrix.target }}.tar.gz"
 
           tar czf "dist/${TARBALL}" -C dist/staging bin/telegram nexo-plugin.toml
-          sha256sum "dist/${TARBALL}" | awk '{print $1}' > "dist/${TARBALL}.sha256"
+          { sha256sum "dist/${TARBALL}" 2>/dev/null || shasum -a 256 "dist/${TARBALL}"; } | awk '{print $1}' > "dist/${TARBALL}.sha256"
           cp nexo-plugin.toml dist/nexo-plugin.toml
           ls -la dist/
       - uses: actions/upload-artifact@v4
