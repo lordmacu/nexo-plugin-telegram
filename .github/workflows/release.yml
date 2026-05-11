@@ -1,14 +1,14 @@
-# Tag push (`v0.1.3`, `v0.1.4`, …) builds release binaries for every
-# target the `nexo-rs` daemon ships for and creates a GitHub Release
-# in the layout `nexo plugin install` expects:
+# Tag push (`v0.1.4`, …) builds release binaries for every target the
+# `nexo-rs` daemon ships for and creates a GitHub Release in the layout
+# `nexo plugin install` expects:
 #   * bare `nexo-plugin.toml` at release root
 #   * `<plugin_id>-<version>-<target>.tar.gz` containing
 #     `nexo-plugin.toml` + `bin/<plugin_id>` at archive root
 #   * `<...>.tar.gz.sha256` sidecar with the hex digest
 #
-# Targets: x86_64/aarch64 musl static (via cargo-zigbuild, matching
-# `nexo-rs`'s own release) + x86_64/aarch64 macOS. Operators run
-# `nexo plugin install lordmacu/nexo-plugin-telegram`.
+# Targets: x86_64/aarch64 musl static + x86_64/aarch64 macOS (via
+# cargo-zigbuild) + x86_64 Windows MSVC (native build on windows-latest).
+# Operators run `nexo plugin install lordmacu/nexo-plugin-telegram`.
 
 name: release
 
@@ -33,12 +33,13 @@ jobs:
             target: x86_64-apple-darwin
           - os: macos-14
             target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
     steps:
       - name: Checkout plugin
         uses: actions/checkout@v4
         with:
           path: nexo-rs-plugin-telegram
-      # Path-deps in Cargo.toml resolve `../proyecto/crates/...`.
       - name: Checkout proyecto (path-dep workspace)
         uses: actions/checkout@v4
         with:
@@ -48,7 +49,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # --- musl-only build prerequisites (mirrors nexo-rs's release) ---
       - name: Install musl-tools (ring's cc-rs build.rs needs *-linux-musl-gcc)
         if: contains(matrix.target, 'linux-musl')
         run: |
@@ -62,23 +62,32 @@ jobs:
           echo "CFLAGS_aarch64_unknown_linux_musl=${MUSL_CFLAGS}" >> "$GITHUB_ENV"
 
       - name: Install zig (pinned)
+        if: ${{ !contains(matrix.target, 'windows') }}
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: "0.13.0"
       - name: Install cargo-zigbuild
+        if: ${{ !contains(matrix.target, 'windows') }}
         run: cargo install cargo-zigbuild --locked --version 0.22.3
 
-      - name: cargo zigbuild --release
+      - name: Build (Unix — cargo-zigbuild)
+        if: ${{ !contains(matrix.target, 'windows') }}
         working-directory: nexo-rs-plugin-telegram
         run: cargo zigbuild --release --target ${{ matrix.target }}
+      - name: Build (Windows — native cargo)
+        if: contains(matrix.target, 'windows')
+        working-directory: nexo-rs-plugin-telegram
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: package (nexo plugin install layout)
         working-directory: nexo-rs-plugin-telegram
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist/staging/bin
-          cp "target/${{ matrix.target }}/release/nexo-plugin-telegram" \
-             dist/staging/bin/telegram
+          BIN="target/${{ matrix.target }}/release/nexo-plugin-telegram"
+          [ -f "${BIN}.exe" ] && BIN="${BIN}.exe"
+          cp "$BIN" dist/staging/bin/telegram
           cp nexo-plugin.toml dist/staging/nexo-plugin.toml
 
           PLUGIN_ID=$(grep -E '^id[[:space:]]*=' nexo-plugin.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
