@@ -41,7 +41,7 @@ fn allowlist_denied(ctx: &AgentContext, chat_id: i64) -> bool {
 }
 
 async fn publish_outbound(ctx: &AgentContext, payload: Value) -> anyhow::Result<()> {
-    // Phase 17 — resolve the target bot instance from the agent's
+    // Resolve the target bot instance from the agent's
     // `credentials.telegram` binding. Legacy single-bot deployments
     // without a resolver stay on the un-suffixed topic for back-compat.
     let (topic, breaker_handle) = match ctx.credentials.as_ref() {

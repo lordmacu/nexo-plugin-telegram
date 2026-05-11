@@ -1,4 +1,4 @@
-//! Subprocess entrypoint for `nexo-plugin-telegram` (Phase 81.18).
+//! Subprocess entrypoint for `nexo-plugin-telegram`.
 //!
 //! Wires:
 //!   - [`PluginAdapter`] — child-side JSON-RPC dispatch loop.
@@ -19,7 +19,7 @@
 //!   * `NEXO_PLUGIN_TELEGRAM_OFFSET_PATH`
 //!   * `NEXO_PLUGIN_TELEGRAM_AUTO_TRANSCRIBE` (default false)
 //!   * `NEXO_PLUGIN_TELEGRAM_WHISPER_*`       (optional)
-//!   * `NEXO_BROKER_KIND`  (Phase 92 — `nats` or `stdio_bridge`;
+//!   * `NEXO_BROKER_KIND`  (`nats` or `stdio_bridge`;
 //!                          defaults to `nats` for backwards compat)
 //!   * `NEXO_BROKER_URL`   (required when KIND=nats)
 
@@ -42,12 +42,12 @@ const MANIFEST: &str = include_str!("../nexo-plugin.toml");
 /// retries broker / Telegram outages on its own cadence.
 static PLUGIN: Lazy<OnceCell<Arc<TelegramPlugin>>> = Lazy::new(OnceCell::new);
 
-/// Phase 92 — populated in `main()` when the daemon stamps
+/// Populated in `main()` when the daemon stamps
 /// `NEXO_BROKER_KIND=stdio_bridge`. Mirrors the BRIDGE cell in
 /// the whatsapp plugin; same role, same wiring.
 static BRIDGE: Lazy<OnceCell<Arc<StdioBridgeBroker>>> = Lazy::new(OnceCell::new);
 
-/// Phase 92 — construct the broker based on `NEXO_BROKER_KIND`.
+/// Construct the broker based on `NEXO_BROKER_KIND`.
 /// `stdio_bridge` clones from [`BRIDGE`]; anything else (default
 /// + explicit `nats`) connects via `NEXO_BROKER_URL`.
 async fn build_broker() -> Result<AnyBroker, ToolInvocationError> {
@@ -136,8 +136,8 @@ async fn main() -> anyhow::Result<()> {
             dispatch_telegram_tool(plugin.as_ref(), invocation).await
         });
 
-    // Phase 92 — see whatsapp plugin's main.rs for the matching
-    // wiring rationale. The bridge piggybacks on the adapter's
+    // See whatsapp plugin's main.rs for the matching wiring
+    // rationale. The bridge piggybacks on the adapter's
     // stdout writer; net: zero network broker dependency when
     // the daemon runs with `broker.yaml type: local`.
     let adapter = if std::env::var("NEXO_BROKER_KIND").as_deref() == Ok("stdio_bridge") {
