@@ -74,8 +74,8 @@ jobs:
              dist/staging/bin/telegram
           cp nexo-plugin.toml dist/staging/nexo-plugin.toml
 
-          PLUGIN_ID=$(grep -E '^id = ' nexo-plugin.toml | head -1 | sed -E 's/id = "([^"]+)"/\1/')
-          VERSION=$(grep -E '^version = ' nexo-plugin.toml | head -1 | sed -E 's/version = "([^"]+)"/\1/')
+          PLUGIN_ID=$(grep -E '^id[[:space:]]*=' nexo-plugin.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          VERSION=$(grep -E '^version[[:space:]]*=' nexo-plugin.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
           TARBALL="${PLUGIN_ID}-${VERSION}-${{ matrix.target }}.tar.gz"
 
           tar czf "dist/${TARBALL}" -C dist/staging bin/telegram nexo-plugin.toml
