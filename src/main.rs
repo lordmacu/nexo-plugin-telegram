@@ -20,7 +20,7 @@
 //!   * `NEXO_PLUGIN_TELEGRAM_AUTO_TRANSCRIBE` (default false)
 //!   * `NEXO_PLUGIN_TELEGRAM_WHISPER_*`       (optional)
 //!   * `NEXO_BROKER_KIND`  (`nats` or `stdio_bridge`;
-//!                          defaults to `nats` for backwards compat)
+//!     defaults to `nats` for backwards compat)
 //!   * `NEXO_BROKER_URL`   (required when KIND=nats)
 
 use std::sync::Arc;
@@ -87,8 +87,24 @@ async fn build_broker() -> Result<AnyBroker, ToolInvocationError> {
 async fn shared_plugin() -> Result<Arc<TelegramPlugin>, ToolInvocationError> {
     PLUGIN
         .get_or_try_init(|| async {
-            let cfg = telegram_config_from_env()
-                .map_err(|e| ToolInvocationError::ArgumentInvalid(format!("env config: {e}")))?;
+            // Phase 93.4.a — prefer the `plugin.configure`-delivered
+            // slice (Phase 93.2) when present; legacy env-var path
+            // stays as fallback during the 0.2.x deprecation window.
+            let cfg = {
+                let guard = nexo_plugin_telegram::configured_state().read().await;
+                if let Some(vec) = guard.as_ref() {
+                    vec.first().cloned().ok_or_else(|| {
+                        ToolInvocationError::ArgumentInvalid(
+                            "configured array delivered empty Vec".into(),
+                        )
+                    })?
+                } else {
+                    drop(guard);
+                    telegram_config_from_env().map_err(|e| {
+                        ToolInvocationError::ArgumentInvalid(format!("env config: {e}"))
+                    })?
+                }
+            };
 
             let broker = build_broker().await?;
 
@@ -131,6 +147,16 @@ async fn main() -> anyhow::Result<()> {
 
     let adapter = PluginAdapter::new(MANIFEST)?
         .declare_tools(telegram_tool_defs())
+        // Phase 93.4.a — receive the operator YAML slice via the
+        // host's `plugin.configure` JSON-RPC (Phase 93.2). Sequence
+        // shape per manifest `[plugin.config_schema] shape = "array"`.
+        .on_configure(|value: serde_yaml::Value| async move {
+            let parsed: Vec<nexo_plugin_telegram::TelegramPluginConfig> =
+                serde_yaml::from_value(value)
+                    .map_err(|e| format!("invalid telegram config: {e}"))?;
+            *nexo_plugin_telegram::configured_state().write().await = Some(parsed);
+            Ok(())
+        })
         .on_tool(|invocation: ToolInvocation| async move {
             let plugin = shared_plugin().await?;
             dispatch_telegram_tool(plugin.as_ref(), invocation).await

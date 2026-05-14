@@ -6,8 +6,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use nexo_broker::{AnyBroker, BrokerHandle, Event};
-use nexo_config::types::plugins::TelegramPluginConfig;
 use nexo_core::agent::plugin::{Command, Plugin, Response};
+
+use crate::config::TelegramPluginConfig;
 use nexo_core::agent::plugin_host::{
     NexoPlugin, PluginInitContext, PluginInitError, PluginShutdownError,
 };
@@ -1208,7 +1209,7 @@ struct MediaDownloadInput {
 /// for the reply line, and return the transcribed text (or None on any
 /// failure — caller proceeds with empty text).
 async fn transcribe_voice(
-    cfg: &nexo_config::types::plugins::TelegramAutoTranscribeConfig,
+    cfg: &crate::config::TelegramAutoTranscribeConfig,
     audio_path: &str,
 ) -> Option<String> {
     let command = cfg.command.trim();
@@ -1615,7 +1616,7 @@ mod nexo_plugin_tests {
     fn manifest_parses_and_id_is_telegram() {
         let m: PluginManifest = toml::from_str(MANIFEST_TOML).unwrap();
         assert_eq!(m.plugin.id, "telegram");
-        assert_eq!(m.plugin.version.to_string(), "0.1.1");
+        assert_eq!(m.plugin.version.to_string(), "0.2.0");
         assert_eq!(
             m.plugin.requires.nexo_capabilities,
             vec!["broker".to_string()]
@@ -1632,7 +1633,7 @@ mod nexo_plugin_tests {
         let plugin = TelegramPlugin::new(test_telegram_config(None));
         let nexo: &dyn NexoPlugin = &plugin;
         assert_eq!(nexo.manifest().plugin.id, "telegram");
-        assert_eq!(nexo.manifest().plugin.version.to_string(), "0.1.1");
+        assert_eq!(nexo.manifest().plugin.version.to_string(), "0.2.0");
     }
 
     #[test]

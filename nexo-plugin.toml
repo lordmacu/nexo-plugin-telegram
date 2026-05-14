@@ -8,7 +8,7 @@
 
 [plugin]
 id              = "telegram"
-version         = "0.1.4"
+version         = "0.2.0"
 name            = "Telegram Bot"
 description     = "Telegram bot channel for nexo agents."
 min_nexo_version = ">=0.1.0"
@@ -61,3 +61,43 @@ label       = "Bot token"
 placeholder = "123456:ABC-DEF..."
 sensitive   = true
 required    = true
+
+# Phase 93.4.a — declarative config contract. The daemon delivers
+# operator YAML at `cfg.plugins.entries.telegram` (Phase 93.3) via
+# `plugin.configure` JSON-RPC (Phase 93.2); SDK `on_configure`
+# handler deserialises into the plugin-local `Vec<TelegramPluginConfig>`.
+[plugin.config_schema]
+shape = "array"
+schema = '''{
+  "type": "object",
+  "properties": {
+    "token":             { "type": "string" },
+    "instance":          { "type": "string" },
+    "bridge_timeout_ms": { "type": "integer" },
+    "allowlist": {
+      "type": "object",
+      "properties": {
+        "chat_ids": { "type": "array" }
+      }
+    },
+    "polling": {
+      "type": "object",
+      "properties": {
+        "enabled":     { "type": "boolean" },
+        "interval_ms": { "type": "integer" },
+        "offset_path": { "type": "string" }
+      }
+    },
+    "auto_transcribe": {
+      "type": "object",
+      "properties": {
+        "enabled":    { "type": "boolean" },
+        "command":    { "type": "string" },
+        "timeout_ms": { "type": "integer" },
+        "language":   { "type": "string" }
+      }
+    },
+    "allow_agents": { "type": "array" }
+  },
+  "required": ["token"]
+}'''
