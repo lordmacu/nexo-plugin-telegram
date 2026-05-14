@@ -22,6 +22,8 @@
 //!    lean.
 
 pub mod bot;
+pub mod config;
+pub mod configured_state;
 pub mod env_config;
 pub mod events;
 pub mod pairing_adapter;
@@ -31,6 +33,11 @@ pub mod session_id;
 pub mod subprocess_dispatch;
 pub mod tool;
 
+pub use config::{
+    TelegramAllowlistConfig, TelegramAutoTranscribeConfig, TelegramPluginConfig,
+    TelegramPollingConfig,
+};
+pub use configured_state::configured_state;
 pub use env_config::telegram_config_from_env;
 #[cfg(not(feature = "embedded"))]
 pub use subprocess_dispatch::{dispatch_telegram_tool, telegram_tool_defs};
@@ -40,26 +47,3 @@ pub use pairing_adapter::TelegramPairingAdapter;
 pub use plugin::{TelegramPlugin, TOPIC_INBOUND, TOPIC_OUTBOUND};
 pub use session_id::session_id_for_chat;
 pub use tool::register_telegram_tools;
-
-use std::sync::Arc;
-
-use nexo_config::types::plugins::TelegramPluginConfig;
-use nexo_core::agent::nexo_plugin_registry::PluginFactory;
-use nexo_core::agent::plugin_host::NexoPlugin;
-
-/// Factory builder for one telegram plugin instance, used by the
-/// in-process embedded path. Multi-bot operators call this once per
-/// [`TelegramPluginConfig`] (one per bot token / instance label) and
-/// register each result in a `PluginFactoryRegistry` under a
-/// distinct manifest name; `wire_plugin_registry(..., Some(&factory))`
-/// instantiates them on boot.
-///
-/// Subprocess consumers (the daemon's default path) construct
-/// [`TelegramPlugin`] directly inside `main.rs` from env-derived
-/// config and never touch this helper.
-pub fn telegram_plugin_factory(cfg: TelegramPluginConfig) -> PluginFactory {
-    Box::new(move |_manifest| {
-        let plugin: Arc<dyn NexoPlugin> = Arc::new(TelegramPlugin::new(cfg.clone()));
-        Ok(plugin)
-    })
-}

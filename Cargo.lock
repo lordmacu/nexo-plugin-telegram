@@ -2455,6 +2455,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serde_yaml",
  "thiserror 1.0.69",
  "tokio",
  "toml",
@@ -2503,7 +2504,7 @@ dependencies = [
 
 [[package]]
 name = "nexo-plugin-telegram"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2524,6 +2525,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "serde_yaml",
  "serial_test",
  "tempfile",
  "tokio",
