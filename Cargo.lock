@@ -2478,6 +2478,8 @@ dependencies = [
  "hex",
  "hmac",
  "image",
+ "nexo-broker",
+ "nexo-plugin-manifest",
  "qrcode",
  "rand 0.8.6",
  "serde",
@@ -2506,10 +2508,11 @@ dependencies = [
 
 [[package]]
 name = "nexo-plugin-telegram"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "dashmap",
  "futures-util",
