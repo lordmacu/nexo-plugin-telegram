@@ -62,7 +62,7 @@ rustls       = { version = "0.23", default-features = false, features = ["ring"]
 
 # Path-deps interim until the rest of the proyecto crates publish to
 # crates.io. Mirrors the layout used by the standalone browser plugin.
-nexo-microapp-sdk    = { version = "0.1.15", path = "../proyecto/crates/microapp-sdk", features = ["plugin"] }
+nexo-microapp-sdk    = { version = "0.1.16", path = "../proyecto/crates/microapp-sdk", features = ["plugin"] }
 nexo-broker          = { version = "0.1.1",  path = "../proyecto/crates/broker" }
 nexo-core            = { version = "0.1.1",  path = "../proyecto/crates/core" }
 nexo-config          = { version = "0.1.1",  path = "../proyecto/crates/config" }
