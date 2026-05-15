@@ -16,7 +16,7 @@
 
 [package]
 name        = "nexo-plugin-telegram"
-version     = "0.2.0"
+version     = "0.3.0"
 description = "Telegram bot plugin for Nexo agents (out-of-tree subprocess)."
 edition     = "2021"
 license     = "MIT OR Apache-2.0"
@@ -62,7 +62,7 @@ rustls       = { version = "0.23", default-features = false, features = ["ring"]
 
 # Path-deps interim until the rest of the proyecto crates publish to
 # crates.io. Mirrors the layout used by the standalone browser plugin.
-nexo-microapp-sdk    = { version = "0.1.12", path = "../proyecto/crates/microapp-sdk", features = ["plugin"] }
+nexo-microapp-sdk    = { version = "0.1.15", path = "../proyecto/crates/microapp-sdk", features = ["plugin"] }
 nexo-broker          = { version = "0.1.1",  path = "../proyecto/crates/broker" }
 nexo-core            = { version = "0.1.1",  path = "../proyecto/crates/core" }
 nexo-config          = { version = "0.1.1",  path = "../proyecto/crates/config" }

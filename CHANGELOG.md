@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.3.0 — 2026-05-15
+
+### Added
+
+- Manifest declares `[plugin.credentials_schema] enabled = true,
+  accounts_shape = "array"` (Phase 93.8.a-daemon). Daemon-side
+  `SubprocessNexoPlugin::credential_store()` now constructs a
+  `RemoteCredentialStore` for this plugin and registers it into
+  `bundle.stores_v2["telegram"]` via the Phase 93.7 init-loop
+  helper.
+- `src/main.rs` registers the four Phase 93.8.a-sdk handlers:
+  - `on_credentials_list` — returns configured `instance`
+    labels from `configured_state()`.
+  - `on_credentials_issue` — allow-list check against the
+    matching `TelegramPluginConfig.allow_agents`. Empty list
+    accepts any agent; explicit non-match returns
+    `not_permitted`; unknown account returns `not_found`.
+  - `on_credentials_resolve_bytes` — serialises the full
+    `TelegramPluginConfig` (including `token`) via
+    `serde_json::to_vec`. Daemon-side consumers (Phase 93.8.b+)
+    deserialise with `serde_json::from_slice::<TelegramPluginConfig>(&bytes)`.
+    Bytes flow only through the resolver + breaker chain.
+  - `on_credentials_reload` — no-op + Ok. Telegram has no
+    live-reload path; the operator's YAML re-delivers via
+    `plugin.configure` on file-watcher fire (Phase 93.2).
+- `TelegramPluginConfig` + its sub-structs gain `Serialize`
+  derive (needed by `resolve_bytes` handler's
+  `serde_json::to_vec`).
+- 5 new integration tests in `tests/credentials_path.rs` —
+  list / issue allow-list / issue not-found / issue
+  not-permitted / resolve_bytes round-trip.
+- `nexo-microapp-sdk` path-dep pin bumped 0.1.12 → 0.1.15 to
+  pick up the `PluginAdapter::on_credentials_*` builders + the
+  `CredentialsListReply` struct (Phase 93.8.a-sdk, proyecto
+  commit `e59ba0be`).
+
+### Backward compatibility
+
+- Daemon-side typed `bundle.stores.telegram` keeps serving
+  consumers through the Phase 93.9 deprecation window. The new
+  `bundle.stores_v2["telegram"]` runs in parallel; no consumer
+  reads it yet.
+
 ## 0.2.0 — 2026-05-14
 
 ### Breaking
