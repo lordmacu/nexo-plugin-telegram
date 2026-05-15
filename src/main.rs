@@ -157,6 +157,68 @@ async fn main() -> anyhow::Result<()> {
             *nexo_plugin_telegram::configured_state().write().await = Some(parsed);
             Ok(())
         })
+        // Phase 93.8.a-telegram — register the 4 credential-store
+        // handlers. Daemon-side `RemoteCredentialStore` (Phase
+        // 93.8.a-daemon) round-trips each
+        // `GenericCredentialStore` method via these RPCs.
+        .on_credentials_list(|| async move {
+            let guard = nexo_plugin_telegram::configured_state().read().await;
+            let accounts: Vec<String> = guard
+                .as_ref()
+                .map(|v| {
+                    v.iter()
+                        .filter_map(|c| c.instance.clone())
+                        .collect()
+                })
+                .unwrap_or_default();
+            Ok(nexo_microapp_sdk::plugin::CredentialsListReply {
+                accounts,
+                warnings: Vec::new(),
+            })
+        })
+        .on_credentials_issue(|account_id: String, agent_id: String| async move {
+            // Allow-list check against the configured account's
+            // `allow_agents`. Empty allow_agents ⇒ accept any.
+            let guard = nexo_plugin_telegram::configured_state().read().await;
+            let Some(cfgs) = guard.as_ref() else {
+                return Err("not_found".to_string());
+            };
+            let cfg = cfgs
+                .iter()
+                .find(|c| c.instance.as_deref() == Some(account_id.as_str()));
+            match cfg {
+                None => Err("not_found".to_string()),
+                Some(c) if c.allow_agents.is_empty() || c.allow_agents.contains(&agent_id) => {
+                    Ok(())
+                }
+                Some(_) => Err("not_permitted".to_string()),
+            }
+        })
+        .on_credentials_resolve_bytes(|account_id: String, _agent_id: String, _fingerprint: String| async move {
+            // Return the full account config as JSON bytes. The
+            // daemon's caller (Phase 93.8.b+ consumer migration)
+            // deserialises with
+            // `serde_json::from_slice::<TelegramPluginConfig>(&bytes)`.
+            // Bytes carry the bot token — only flow to authorised
+            // outbound paths (the existing resolver + breaker
+            // chain enforces that).
+            let guard = nexo_plugin_telegram::configured_state().read().await;
+            let Some(cfgs) = guard.as_ref() else {
+                return Err("not_found".to_string());
+            };
+            let cfg = cfgs
+                .iter()
+                .find(|c| c.instance.as_deref() == Some(account_id.as_str()))
+                .ok_or_else(|| "not_found".to_string())?;
+            serde_json::to_vec(cfg).map_err(|e| format!("serialize failed: {e}"))
+        })
+        .on_credentials_reload(|| async move {
+            // Telegram has no live-reload path — the operator's
+            // YAML re-delivers via `plugin.configure` on file-
+            // watcher fire (Phase 93.2 hot-reload). This handler
+            // is a no-op + ack.
+            Ok(())
+        })
         .on_tool(|invocation: ToolInvocation| async move {
             let plugin = shared_plugin().await?;
             dispatch_telegram_tool(plugin.as_ref(), invocation).await

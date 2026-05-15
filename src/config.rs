@@ -13,9 +13,9 @@
 //! definitions verbatim — operators keep the same YAML, plugin
 //! authors don't need a `nexo-config` Cargo dep.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TelegramPluginConfig {
     pub token: String,
@@ -47,7 +47,7 @@ fn default_bridge_timeout_ms() -> u64 {
     120_000
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TelegramAutoTranscribeConfig {
     #[serde(default)]
@@ -72,7 +72,7 @@ fn default_whisper_timeout() -> u64 {
     60_000
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TelegramPollingConfig {
     #[serde(default = "default_polling_enabled")]
@@ -92,7 +92,7 @@ fn default_polling_interval() -> u64 {
     25_000
 }
 
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TelegramAllowlistConfig {
     #[serde(default)]

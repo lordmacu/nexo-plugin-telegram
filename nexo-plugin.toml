@@ -8,7 +8,7 @@
 
 [plugin]
 id              = "telegram"
-version         = "0.2.0"
+version         = "0.3.0"
 name            = "Telegram Bot"
 description     = "Telegram bot channel for nexo agents."
 min_nexo_version = ">=0.1.0"
@@ -101,3 +101,13 @@ schema = '''{
   },
   "required": ["token"]
 }'''
+
+# Phase 93.8.a — credential store contribution. Daemon's
+# `SubprocessNexoPlugin::credential_store()` reads this and
+# constructs a `RemoteCredentialStore` that round-trips each
+# `GenericCredentialStore` method to the four
+# `plugin.credentials.*` JSON-RPC handlers registered in
+# `src/main.rs` (Phase 93.8.a-sdk SDK builders).
+[plugin.credentials_schema]
+enabled = true
+accounts_shape = "array"
