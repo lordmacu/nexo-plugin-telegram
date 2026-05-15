@@ -8,7 +8,7 @@
 
 [plugin]
 id              = "telegram"
-version         = "0.3.0"
+version         = "0.4.0"
 name            = "Telegram Bot"
 description     = "Telegram bot channel for nexo agents."
 min_nexo_version = ">=0.1.0"

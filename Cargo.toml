@@ -16,7 +16,7 @@
 
 [package]
 name        = "nexo-plugin-telegram"
-version     = "0.3.0"
+version     = "0.4.0"
 description = "Telegram bot plugin for Nexo agents (out-of-tree subprocess)."
 edition     = "2021"
 license     = "MIT OR Apache-2.0"
