@@ -31,7 +31,21 @@ tools = [
 # `>` matches the per-instance suffix (`telegram.<instance>` and
 # `telegram` legacy).
 [plugin.capabilities.broker]
-subscribe = ["plugin.outbound.telegram", "plugin.outbound.telegram.>"]
+subscribe = [
+    "plugin.outbound.telegram",
+    "plugin.outbound.telegram.>",
+    # Phase 81.33.b.real Stages 1+2+4+5 — auto-discovery broker
+    # handler topics. Daemon-side helpers publish here; the
+    # plugin's auto-discovery subscriber loop in `src/main.rs`
+    # parses + replies per the JSON contract documented at
+    # `proyecto/docs/src/plugins/manifest-{pairing-adapter,http,admin,metrics}.md`.
+    "plugin.telegram.pairing.normalize_sender",
+    "plugin.telegram.pairing.send_reply",
+    "plugin.telegram.pairing.send_qr_image",
+    "plugin.telegram.http.request",
+    "plugin.telegram.admin.>",
+    "plugin.telegram.metrics.scrape",
+]
 publish   = ["plugin.inbound.telegram",  "plugin.inbound.telegram.>"]
 
 # Plugin-driven pairing UI descriptor. Form flow — the
@@ -44,6 +58,17 @@ label          = "Telegram"
 # Matches the conventional `"instance"` name today; future plugins
 # whose form uses a different discriminator just point this here.
 instance_field = "instance"
+
+# Phase 81.33.b.real Stage 1 — pairing adapter via broker dispatch.
+# Daemon's `GenericBrokerPairingAdapter` constructs from this
+# section + forwards `PairingChannelAdapter` trait calls to:
+#   plugin.telegram.pairing.normalize_sender
+#   plugin.telegram.pairing.send_reply
+#   plugin.telegram.pairing.send_qr_image
+# Plugin auto-discovery subscriber loop handles each.
+[plugin.pairing.adapter]
+channel_id           = "telegram"
+broker_topic_prefix  = "plugin.telegram"
 
 [plugin.pairing.instructions]
 es = "Conseguí un token con @BotFather en Telegram y pegalo aquí junto al username del bot."
@@ -61,6 +86,54 @@ label       = "Bot token"
 placeholder = "123456:ABC-DEF..."
 sensitive   = true
 required    = true
+
+# Phase 81.33.b.real Stage 2 — daemon mounts a generic HTTP
+# proxy under this prefix on `:8080`. Forwards every request via
+# `plugin.telegram.http.request` broker JSON-RPC. Plugin owns
+# its internal router under the prefix (see
+# `src/auto_discovery.rs` `http_request`).
+[plugin.http]
+mount_prefix    = "/telegram"
+timeout_seconds = 30
+
+# Phase 81.33.b.real Stage 4 — admin RPC commands forwarded via
+# broker. Daemon receives `nexo/admin/telegram/<verb>` from
+# operators + forwards to `plugin.telegram.admin.<verb>`.
+[plugin.admin]
+method_prefix       = "nexo/admin/telegram/"
+broker_topic_prefix = "plugin.telegram.admin"
+timeout_seconds     = 15
+
+# Phase 81.33.b.real Stage 5 — Prometheus metrics scrape. Daemon's
+# `/metrics` aggregator iterates declarers + appends each plugin's
+# scrape output. Topic: `plugin.telegram.metrics.scrape`.
+[plugin.metrics]
+prometheus          = true
+broker_topic_prefix = "plugin.telegram"
+timeout_seconds     = 5
+
+# Phase 81.33.b.real Stage 6 — setup wizard dashboard surface.
+# Telegram is single-instance + file-presence auth (the existing
+# pattern from the legacy `TelegramDashboardSource` in
+# `crates/setup/src/services/channels_dashboard.rs`).
+[plugin.dashboard.layout]
+kind = "single"
+
+[plugin.dashboard.auth_check]
+kind = "file_presence"
+path = "telegram_bot_token.txt"
+
+# Phase 81.33.a `[[plugin.tools.outbound]]` declarative tool
+# entries deliberately omitted in this revision: telegram's
+# outbound tool wire today goes through the daemon-side
+# `register_telegram_tools(&tools)` fallback (gated by
+# `plugin-telegram` cargo feature). Declaring them here would
+# trigger the migration-aware skip in
+# `proyecto/src/main.rs::plugin_declares_outbound_tools` AND
+# require the plugin to handle `outbound_tool.invoke` via the
+# generic `RemoteToolHandler` — a separate migration step
+# tracked under Stage 7 cleanup. For Stage 1+2+4+5+6 PoC scope,
+# tools stay on legacy daemon-side registration.
 
 # Phase 93.4.a — declarative config contract. The daemon delivers
 # operator YAML at `cfg.plugins.entries.telegram` (Phase 93.3) via

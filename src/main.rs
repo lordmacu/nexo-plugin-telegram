@@ -25,7 +25,7 @@
 
 use std::sync::Arc;
 
-use nexo_broker::{AnyBroker, StdioBridgeBroker};
+use nexo_broker::{AnyBroker, BrokerHandle, Event, Message, StdioBridgeBroker};
 use nexo_core::agent::plugin::Plugin;
 use nexo_microapp_sdk::plugin::{PluginAdapter, ToolInvocation, ToolInvocationError};
 use nexo_plugin_telegram::{
@@ -231,12 +231,20 @@ async fn main() -> anyhow::Result<()> {
     let adapter = if std::env::var("NEXO_BROKER_KIND").as_deref() == Ok("stdio_bridge") {
         let (adapter, bridge) = adapter.with_stdio_bridge_broker();
         BRIDGE
-            .set(bridge)
+            .set(bridge.clone())
             .map_err(|_| anyhow::anyhow!("BRIDGE already initialized (this should not happen)"))?;
         tracing::info!(
             target = "nexo_plugin_telegram",
             "stdio_bridge broker wired (daemon broker = Local)"
         );
+        // Phase 81.33.b.real Stages 1+2+4+5 — auto-discovery
+        // broker subscriber loop. Spawns 6 tasks (one per
+        // topic family) that subscribe to the daemon-published
+        // request topics, parse `Message` from the inbound
+        // event payload, dispatch to the matching
+        // `auto_discovery::*` handler, and publish the reply
+        // back to `msg.reply_to`.
+        spawn_auto_discovery_subscribers(AnyBroker::StdioBridge((*bridge).clone()));
         adapter
     } else {
         adapter
@@ -244,4 +252,94 @@ async fn main() -> anyhow::Result<()> {
 
     adapter.run_stdio().await?;
     Ok(())
+}
+
+/// Phase 81.33.b.real Stages 1+2+4+5 — auto-discovery broker
+/// subscriber loop. Spawns one tokio task per request-reply
+/// topic family. Each task subscribes to its topic, parses
+/// `Message` from each inbound `Event.payload`, dispatches to
+/// the matching `auto_discovery::*` handler, and publishes the
+/// reply back to `msg.reply_to`.
+///
+/// Topics + handlers per [nexo-plugin.toml](../nexo-plugin.toml):
+///
+/// - `plugin.telegram.pairing.normalize_sender` →
+///   `auto_discovery::pairing_normalize_sender`
+/// - `plugin.telegram.pairing.send_reply` →
+///   `auto_discovery::pairing_send_reply`
+/// - `plugin.telegram.pairing.send_qr_image` →
+///   `auto_discovery::pairing_send_qr_image`
+/// - `plugin.telegram.http.request` →
+///   `auto_discovery::http_request`
+/// - `plugin.telegram.admin.>` (multiple verbs; `admin_handle`
+///   dispatches by `msg.payload.method`) →
+///   `auto_discovery::admin_handle`
+/// - `plugin.telegram.metrics.scrape` →
+///   `auto_discovery::metrics_scrape`
+///
+/// Failure isolation: each task runs its own subscription loop;
+/// a panic / drop in one does NOT take down the plugin process
+/// or the other tasks.
+fn spawn_auto_discovery_subscribers(broker: AnyBroker) {
+    use nexo_plugin_telegram::auto_discovery as ad;
+    use serde_json::Value;
+
+    spawn_one(broker.clone(), "plugin.telegram.pairing.normalize_sender", ad::pairing_normalize_sender);
+    spawn_one(broker.clone(), "plugin.telegram.pairing.send_reply", ad::pairing_send_reply);
+    spawn_one(broker.clone(), "plugin.telegram.pairing.send_qr_image", ad::pairing_send_qr_image);
+    spawn_one(broker.clone(), "plugin.telegram.http.request", ad::http_request);
+    spawn_one(broker.clone(), "plugin.telegram.metrics.scrape", ad::metrics_scrape);
+    // Admin uses a wildcard prefix; subscribe to `>` and
+    // dispatch by the embedded method field.
+    spawn_one(broker, "plugin.telegram.admin.>", ad::admin_handle);
+
+    fn spawn_one(
+        broker: AnyBroker,
+        topic: &'static str,
+        handler: fn(&Value) -> Value,
+    ) {
+        tokio::spawn(async move {
+            let mut sub = match broker.subscribe(topic).await {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!(
+                        target = "telegram.auto_discovery",
+                        topic,
+                        error = %e,
+                        "subscribe failed; topic will not receive requests"
+                    );
+                    return;
+                }
+            };
+            tracing::info!(target = "telegram.auto_discovery", topic, "subscriber up");
+            while let Some(event) = sub.next().await {
+                let Ok(msg) = serde_json::from_value::<Message>(event.payload) else {
+                    continue;
+                };
+                let Some(reply_to) = msg.reply_to.clone() else {
+                    continue;
+                };
+                let reply_payload = handler(&msg.payload);
+                let reply_msg = Message::new(reply_to.clone(), reply_payload);
+                let reply_event = Event::new(
+                    reply_to.clone(),
+                    "telegram",
+                    match serde_json::to_value(&reply_msg) {
+                        Ok(v) => v,
+                        Err(_) => continue,
+                    },
+                );
+                if let Err(e) = broker.publish(&reply_to, reply_event).await {
+                    tracing::warn!(
+                        target = "telegram.auto_discovery",
+                        topic,
+                        reply_to = %reply_to,
+                        error = %e,
+                        "failed to publish reply"
+                    );
+                }
+            }
+            tracing::debug!(target = "telegram.auto_discovery", topic, "subscriber stream ended");
+        });
+    }
 }

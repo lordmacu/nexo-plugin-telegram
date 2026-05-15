@@ -21,6 +21,7 @@
 //!    drops subprocess code paths so the resulting binary stays
 //!    lean.
 
+pub mod auto_discovery;
 pub mod bot;
 pub mod config;
 pub mod configured_state;

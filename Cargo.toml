@@ -59,6 +59,7 @@ chrono       = { version = "0.4", default-features = false, features = ["clock",
 toml         = "0.8"
 once_cell    = "1"
 rustls       = { version = "0.23", default-features = false, features = ["ring"] }
+base64       = "0.22"
 
 # Path-deps interim until the rest of the proyecto crates publish to
 # crates.io. Mirrors the layout used by the standalone browser plugin.
